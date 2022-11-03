@@ -41,7 +41,7 @@ import Cardano.Ledger.Shelley.Rewards (sumRewards)
 import Cardano.Ledger.Shelley.Rules.Epoch
 import Cardano.Ledger.Shelley.Rules.Mir (ShelleyMIR, ShelleyMirEvent, ShelleyMirPredFailure)
 import Cardano.Ledger.Shelley.Rules.Rupd (RupdEvent (..))
-import Cardano.Ledger.Shelley.TxBody (PoolParams (_poolVrf))
+import Cardano.Ledger.Shelley.TxBody (PoolParams (ppVrf))
 import Cardano.Ledger.Slot (EpochNo (EpochNo))
 import qualified Cardano.Ledger.Val as Val
 import Control.State.Transition
@@ -222,7 +222,7 @@ calculatePoolDistr' includeHash (SnapShot stake delegs poolParams) =
         Map.intersectionWith
           IndividualPoolStake
           sd
-          (toMap (VMap.map _poolVrf poolParams))
+          (toMap (VMap.map ppVrf poolParams))
 
 instance
   ( STS (ShelleyEPOCH era),

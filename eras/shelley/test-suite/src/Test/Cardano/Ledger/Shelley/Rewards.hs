@@ -283,15 +283,15 @@ genPoolInfo PoolSetUpArgs {poolPledge, poolCost, poolMargin, poolMembers} = do
   let members = Map.insert (KeyHashObj . hashKey . vKey $ ownerKey) ownerStake members'
       params =
         PoolParams
-          { _poolId = hashKey . vKey $ coldKey,
-            _poolVrf = Crypto.hashVerKeyVRF . snd $ vrfKey,
-            _poolPledge = pledge,
-            _poolCost = cost,
-            _poolMargin = margin,
-            _poolRAcnt = RewardAcnt Testnet . KeyHashObj . hashKey . vKey $ rewardKey,
-            _poolOwners = Set.fromList [hashKey $ vKey ownerKey],
-            _poolRelays = StrictSeq.empty,
-            _poolMD = SNothing
+          { ppId = hashKey . vKey $ coldKey,
+            ppVrf = Crypto.hashVerKeyVRF . snd $ vrfKey,
+            ppPledge = pledge,
+            ppCost = cost,
+            ppMargin = margin,
+            ppRewardAcnt = RewardAcnt Testnet . KeyHashObj . hashKey . vKey $ rewardKey,
+            ppOwners = Set.fromList [hashKey $ vKey ownerKey],
+            ppRelays = StrictSeq.empty,
+            ppMetadata = SNothing
           }
   pure $ PoolInfo {params, coldKey, ownerKey, ownerStake, rewardKey, members}
 
@@ -307,7 +307,7 @@ genRewardPPs = do
 genBlocksMade :: [PoolParams c] -> Gen (BlocksMade c)
 genBlocksMade pools = BlocksMade . Map.fromList <$> mapM f pools
   where
-    f p = (_poolId p,) <$> genNatural 0 maxPoolBlocks
+    f p = (ppId p,) <$> genNatural 0 maxPoolBlocks
 
 -- Properties --
 
@@ -334,11 +334,11 @@ rewardsBoundedByPot _ = property $ do
       delegs = fold $
         flip fmap pools $
           \PoolInfo {params, members} ->
-            Map.fromList $ (,_poolId params) <$> Map.keys members
+            Map.fromList $ (,ppId params) <$> Map.keys members
       rewardAcnts = Set.fromList $ Map.keys delegs
       poolParams =
         VMap.fromList
-          [(_poolId params, params) | PoolInfo {params} <- pools]
+          [(ppId params, params) | PoolInfo {params} <- pools]
       totalLovelace = undelegatedLovelace <> fold stake
       slotsPerEpoch = EpochSize . fromIntegral $ totalBlocks + silentSlots
       (RewardAns rs _) =
@@ -415,8 +415,8 @@ rewardOnePool
         Set.foldl'
           (\c o -> maybe c (mappend c . fromCompact) $ VMap.lookup (KeyHashObj o) stake)
           mempty
-          (_poolOwners pool)
-      Coin pledge = _poolPledge pool
+          (ppOwners pool)
+      Coin pledge = ppPledge pool
       pr = fromIntegral pledge % fromIntegral totalStake
       Coin maxP =
         if pledge <= ostake
@@ -437,7 +437,7 @@ rewardOnePool
             | (hk, c) <- VMap.toAscList stake,
               notPoolOwner hk
           ]
-      notPoolOwner (KeyHashObj hk) = hk `Set.notMember` _poolOwners pool
+      notPoolOwner (KeyHashObj hk) = hk `Set.notMember` ppOwners pool
       notPoolOwner (ScriptHashObj _) = HardForks.allowScriptStakeCredsToEarnRewards pp
       lReward =
         leaderRew
@@ -450,7 +450,7 @@ rewardOnePool
           then Map.insertWith (<>)
           else Map.insert
       potentialRewards =
-        f (getRwdCred $ _poolRAcnt pool) lReward mRewards
+        f (getRwdCred $ ppRewardAcnt pool) lReward mRewards
       potentialRewards' =
         if HardForks.forgoRewardPrefilter pp
           then potentialRewards
@@ -557,7 +557,7 @@ createRUpdOld slotsPerEpoch b es@(EpochState acnt ss ls pr _ nm) maxSupply =
   where
     ds = dpsDState $ lsDPState ls
     rs = UM.domain $ rewards ds
-    reserves = _reserves acnt
+    reserves = asReserves acnt
     totalStake = circulation es maxSupply
 
 createRUpdOld_ ::
@@ -800,7 +800,7 @@ reward
       stakePerPool = sumStakePerPool delegs stake
       Coin activeStake = sumAllStake stake
       -- ensure mkPoolRewardInfo does not use stake that doesn't belong to the pool
-      stakeForPool pool = poolStake (_poolId pool) delegs stake
+      stakeForPool pool = poolStake (ppId pool) delegs stake
       mkPoolRewardInfo' pool =
         mkPoolRewardInfo
           pp
